@@ -3,7 +3,6 @@ import {
   enableProdMode,
   EnvironmentInjector,
   ErrorHandler,
-  Injector,
   createEnvironmentInjector,
   importProvidersFrom,
   provideZonelessChangeDetection,
@@ -20,9 +19,8 @@ import {
 } from './app/core/locale.constants';
 import { IS_ANDROID_WEB_VIEW } from './app/util/is-android-web-view';
 import { androidInterface } from './app/features/android/android-interface';
-import { IS_IOS_NATIVE, IS_NATIVE_PLATFORM } from './app/util/is-native-platform';
+import { IS_NATIVE_PLATFORM } from './app/util/is-native-platform';
 // Type definitions for window.ea are in ./app/core/window-ea.d.ts
-import { App as CapacitorApp } from '@capacitor/app';
 import { GlobalErrorHandler } from './app/core/error-handler/global-error-handler.class';
 import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
@@ -69,11 +67,9 @@ import { CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { AppComponent } from './app/app.component';
 import { ShortTimeHtmlPipe } from './app/ui/pipes/short-time-html.pipe';
 import { ShortTimePipe } from './app/ui/pipes/short-time.pipe';
-import { BackgroundTask } from '@capawesome/capacitor-background-task';
 import { PLUGIN_INITIALIZER_PROVIDER } from './app/plugins/plugin-initializer';
 import { initializeMatMenuTouchFix } from './app/features/tasks/task-context-menu/mat-menu-touch-monkey-patch';
 import { Log } from './app/core/log';
-import { OperationWriteFlushService } from './app/op-log/sync/operation-write-flush.service';
 import { GlobalConfigService } from './app/features/config/global-config.service';
 import { LocaleDatePipe } from './app/ui/pipes/locale-date.pipe';
 import { DateTimeFormatService } from './app/core/date-time-format/date-time-format.service';
@@ -84,10 +80,6 @@ if (environment.production || environment.stage) {
 }
 
 // Window.ea declaration is in src/app/core/window-ea.d.ts
-
-// Module-level injector for use in Capacitor lifecycle handlers.
-// Set after Angular bootstrap completes.
-let appInjector: Injector | null = null;
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -245,8 +237,6 @@ bootstrapApplication(AppComponent, {
     // race condition where upload attempts happen before sync config is loaded
   ],
 }).then((appRef) => {
-  appInjector = appRef.injector;
-
   // Initialize touch fix for Material menus
   initializeMatMenuTouchFix();
 
@@ -357,72 +347,4 @@ if (!(environment.production || environment.stage) && IS_ANDROID_WEB_VIEW) {
     androidInterface.showToast('Android DEV works');
     Log.log(androidInterface);
   }, 1000);
-}
-
-// CAPACITOR STUFF
-// ---------------
-
-// Android-specific: Handle back button
-if (IS_ANDROID_WEB_VIEW) {
-  CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-    if (!canGoBack) {
-      CapacitorApp.minimizeApp();
-    } else {
-      window.history.back();
-    }
-  });
-}
-
-// Flush pending operations from in-memory FIFO queue to IndexedDB.
-// Called when the app goes to background to prevent data loss if the OS kills the app.
-const flushPendingOperations = async (platform: string): Promise<void> => {
-  if (!appInjector) {
-    Log.log(`${platform} background: app not yet bootstrapped, skipping flush`);
-    return;
-  }
-  const flushService = appInjector.get(OperationWriteFlushService);
-  await flushService.flushPendingWrites();
-  Log.log(`${platform} background: operation flush complete`);
-};
-
-// Android: Flush pending operations to IndexedDB when app goes to background.
-// Without this, operations in the in-memory FIFO queue are lost if the OS kills the app.
-if (IS_ANDROID_WEB_VIEW) {
-  CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
-    if (isActive) {
-      return;
-    }
-    const taskId = await BackgroundTask.beforeExit(async () => {
-      try {
-        await flushPendingOperations('Android');
-      } catch (e) {
-        Log.err('Android background: operation flush failed', e);
-      }
-      BackgroundTask.finish({ taskId });
-    });
-  });
-}
-
-// iOS: Flush pending operations to IndexedDB when app goes to background.
-if (IS_IOS_NATIVE) {
-  CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
-    if (isActive) {
-      return;
-    }
-    const taskId = await BackgroundTask.beforeExit(async () => {
-      try {
-        await flushPendingOperations('iOS');
-      } catch (e) {
-        Log.err('iOS background: operation flush failed', e);
-      }
-      BackgroundTask.finish({ taskId });
-    });
-  });
-
-  // Handle app URL open (for OAuth callbacks, deep links, etc.)
-  CapacitorApp.addListener('appUrlOpen', (event) => {
-    Log.log('iOS app URL open', event.url);
-    // Handle OAuth callbacks or deep links here
-    // The URL will be passed to the app when opened via custom scheme
-  });
 }

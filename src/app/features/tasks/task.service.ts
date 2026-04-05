@@ -97,6 +97,7 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { INBOX_PROJECT } from '../project/project.const';
 import { GlobalConfigService } from '../config/global-config.service';
+import { TaskApiService } from './task-api.service';
 import { TaskLog } from '../../core/log';
 import { devError } from '../../util/dev-error';
 import { DEFAULT_GLOBAL_CONFIG } from '../config/default-global-config.const';
@@ -116,6 +117,7 @@ export class TaskService {
   private readonly _taskArchiveService = inject(TaskArchiveService);
   private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _taskFocusService = inject(TaskFocusService);
+  private readonly _taskApiService = inject(TaskApiService);
 
   currentTaskId$: Observable<string | null> = this._store.pipe(
     select(selectCurrentTaskId),
@@ -173,7 +175,8 @@ export class TaskService {
     select(selectTaskFeatureState),
   );
 
-  allTasks$: Observable<Task[]> = this._store.pipe(select(selectAllTasks));
+  // allTasks$: Observable<Task[]> = this._store.pipe(select(selectAllTasks));
+  allTasks$: Observable<Task[]> = this._taskApiService.getAll();
 
   allStartableTasks$: Observable<Task[]> = this._store.pipe(select(selectStartableTasks));
 
@@ -392,7 +395,7 @@ export class TaskService {
     isAddToBacklog: boolean = false,
     additional: Partial<Task> = {},
     isAddToBottom: boolean = false,
-  ): string {
+  ): void {
     const workContextId = this._workContextService.activeWorkContextId as string;
     const workContextType = this._workContextService
       .activeWorkContextType as WorkContextType;
@@ -402,19 +405,8 @@ export class TaskService {
       workContextType,
       workContextId,
     });
-
     TaskLog.log(task, additional);
-
-    this._store.dispatch(
-      TaskSharedActions.addTask({
-        task,
-        workContextId,
-        workContextType,
-        isAddToBacklog,
-        isAddToBottom,
-      }),
-    );
-    return task && task.id;
+    this._taskApiService.add(task).subscribe();
   }
 
   async addAndSchedule(
@@ -440,7 +432,7 @@ export class TaskService {
   }
 
   remove(task: TaskWithSubTasks): void {
-    this._store.dispatch(TaskSharedActions.deleteTask({ task }));
+    this._taskApiService.remove(task.id).subscribe();
   }
 
   removeMultipleTasks(taskIds: string[]): void {
@@ -448,11 +440,7 @@ export class TaskService {
   }
 
   update(id: string, changedFields: Partial<Task>): void {
-    this._store.dispatch(
-      TaskSharedActions.updateTask({
-        task: { id, changes: changedFields },
-      }),
-    );
+    this._taskApiService.update(id, changedFields).subscribe();
   }
 
   updateTags(task: Task, newTagIds: string[]): void {
