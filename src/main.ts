@@ -1,45 +1,38 @@
+import { registerLocaleData } from '@angular/common';
 import {
   APP_INITIALIZER,
+  createEnvironmentInjector,
   enableProdMode,
   EnvironmentInjector,
   ErrorHandler,
-  createEnvironmentInjector,
   importProvidersFrom,
   provideZonelessChangeDetection,
   SecurityContext,
 } from '@angular/core';
-import { registerLocaleData } from '@angular/common';
 
-import { environment } from './environments/environment';
 import { IS_ELECTRON } from './app/app.constants';
 import {
   DEFAULT_LANGUAGE,
   DEFAULT_LOCALE_DATA,
   LocaleImportFns,
 } from './app/core/locale.constants';
-import { IS_ANDROID_WEB_VIEW } from './app/util/is-android-web-view';
 import { androidInterface } from './app/features/android/android-interface';
+import { IS_ANDROID_WEB_VIEW } from './app/util/is-android-web-view';
 import { IS_NATIVE_PLATFORM } from './app/util/is-native-platform';
+import { environment } from './environments/environment';
 // Type definitions for window.ea are in ./app/core/window-ea.d.ts
-import { GlobalErrorHandler } from './app/core/error-handler/global-error-handler.class';
-import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
-import { MarkdownModule, MARKED_OPTIONS, SANITIZE } from 'ngx-markdown';
-import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
-import { FeatureStoresModule } from './app/root-store/feature-stores.module';
+import { MatBottomSheetModule } from '@angular/material/bottom-sheet';
 import {
-  MATERIAL_ANIMATIONS,
-  MatNativeDateModule,
+  DateAdapter,
   MAT_DATE_FORMATS,
   MatDateFormats,
-  DateAdapter,
+  MATERIAL_ANIMATIONS,
+  MatNativeDateModule,
 } from '@angular/material/core';
-import { FormlyConfigModule } from './app/ui/formly-config.module';
-import { markedOptionsFactory } from './app/ui/marked-options-factory';
-import { MaterialCssVarsModule } from 'angular-material-css-vars';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatBottomSheetModule } from '@angular/material/bottom-sheet';
-import { ReminderModule } from './app/features/reminder/reminder.module';
+import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import {
   PreloadAllModules,
@@ -47,15 +40,23 @@ import {
   withHashLocation,
   withPreloading,
 } from '@angular/router';
-import { APP_ROUTES } from './app/app.routes';
+import { EffectsModule } from '@ngrx/effects';
 import { StoreModule } from '@ngrx/store';
+import { MaterialCssVarsModule } from 'angular-material-css-vars';
+import { MarkdownModule, MARKED_OPTIONS, SANITIZE } from 'ngx-markdown';
+import { APP_ROUTES } from './app/app.routes';
+import { DataInitService } from './app/core/data-init/data-init.service';
+import { GlobalErrorHandler } from './app/core/error-handler/global-error-handler.class';
+import { ReminderModule } from './app/features/reminder/reminder.module';
+import { EncryptionPasswordDialogOpenerService } from './app/imex/sync/encryption-password-dialog-opener.service';
+import { OperationCaptureService } from './app/op-log/capture/operation-capture.service';
+import { FeatureStoresModule } from './app/root-store/feature-stores.module';
 import { META_REDUCERS } from './app/root-store/meta/meta-reducer-registry';
 import { setOperationCaptureService } from './app/root-store/meta/task-shared-meta-reducers';
-import { OperationCaptureService } from './app/op-log/capture/operation-capture.service';
-import { EncryptionPasswordDialogOpenerService } from './app/imex/sync/encryption-password-dialog-opener.service';
-import { DataInitService } from './app/core/data-init/data-init.service';
-import { EffectsModule } from '@ngrx/effects';
+import { FormlyConfigModule } from './app/ui/formly-config.module';
+import { markedOptionsFactory } from './app/ui/marked-options-factory';
 // StoreDevtoolsModule lazy-loaded only in dev mode below
+import { CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
@@ -63,17 +64,16 @@ import {
   TRANSLATE_HTTP_LOADER_CONFIG,
   TranslateHttpLoader,
 } from '@ngx-translate/http-loader';
-import { CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { AppComponent } from './app/app.component';
-import { ShortTimeHtmlPipe } from './app/ui/pipes/short-time-html.pipe';
-import { ShortTimePipe } from './app/ui/pipes/short-time.pipe';
-import { PLUGIN_INITIALIZER_PROVIDER } from './app/plugins/plugin-initializer';
-import { initializeMatMenuTouchFix } from './app/features/tasks/task-context-menu/mat-menu-touch-monkey-patch';
+import { CustomDateAdapter } from './app/core/date-time-format/custom-date-adapter';
+import { DateTimeFormatService } from './app/core/date-time-format/date-time-format.service';
 import { Log } from './app/core/log';
 import { GlobalConfigService } from './app/features/config/global-config.service';
+import { initializeMatMenuTouchFix } from './app/features/tasks/task-context-menu/mat-menu-touch-monkey-patch';
+import { PLUGIN_INITIALIZER_PROVIDER } from './app/plugins/plugin-initializer';
 import { LocaleDatePipe } from './app/ui/pipes/locale-date.pipe';
-import { DateTimeFormatService } from './app/core/date-time-format/date-time-format.service';
-import { CustomDateAdapter } from './app/core/date-time-format/custom-date-adapter';
+import { ShortTimeHtmlPipe } from './app/ui/pipes/short-time-html.pipe';
+import { ShortTimePipe } from './app/ui/pipes/short-time.pipe';
 
 if (environment.production || environment.stage) {
   enableProdMode();
